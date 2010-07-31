@@ -19,6 +19,7 @@ var displayTextEnglish = {
 	lockPos : "Lock Pos To Sel Text",
 	defaultText : "This claim is false because...",
 	language : "Language",
+	consoleHeader : "Fisheye Summary:",
 };
 
 // Apparently necessary to assign to variable, otherwise code block won't eval to dict

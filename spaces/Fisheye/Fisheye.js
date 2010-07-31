@@ -1,14 +1,4 @@
 
-// Our Space class - refs to our code, icon, and css
-//var FisheyeSpace = new Class({
-	//Extends: ShiftSpace.Space,
-	//attributes: {
-		//name: 'Fisheye',
-		//icon: 'Fisheye.png',
-		//css : 'Fisheye.css'
-	//}
-//});
-
 
 var wrapSetHTML =  function(el, html) {
     if (typeof (el.setHTML) != 'undefined') {
@@ -112,10 +102,6 @@ var FisheyeCriticismRenderClass = new Class({
 		    this.setCategory(key);
 		}.bind(that));
 	    that.someList.injectInside(container);
-
-	    //someBox.appendText("[ " + categoryText + " ]");
-	    //someBox.addEvent('click', that.changeCategory.bind(that));
-	    //someBox.injectInside(container);
 	}
 	else {
 	    var someBox = new ShiftSpace.Element('div', {'class':'FisheyeCategory'});
@@ -126,34 +112,16 @@ var FisheyeCriticismRenderClass = new Class({
 	//someBox.injectInside(container);
     },
 
-    simpleSummaryEdit: true,
-
     // Render the summary, the main text body of popup
     // in edit mode, render an entry box
     renderSummary: function(that, isEdit, de) {
-        that.log("RENDER SUMMARY CALLED");
+        log("RENDER SUMMARY CALLED");
 	if (isEdit) {
-	    that.log("RENDER SUMMARY IN EDIT MODE");
-	    if (this.simpleSummaryEdit) {
-	        that.log("RENDER SUMMARY SIMPLE IN EDIT MODE");
-		that.buildInputArea();
-		that.inputArea.injectInside(that.editBox);
-	    } else {
-		// create an iframe with the css already loaded
-		that.summaryFrame = new ShiftSpace.Iframe({
-		  'class' : 'FisheyeEditableText',
-		  scroll : 'no',
-		  rows : 4,
-		  cols : 25,
-		  wrap : 'hard',
-		  css : that.getParentSpace().attributes.css,
-		  border : 'medium double #C4C87C' ,
-		  onload : that.finishFrame.bind(that)
-		});
-		that.summaryFrame.injectInside(that.editBox);
-	    }
+	    log("RENDER SUMMARY SIMPLE IN EDIT MODE");
+	    that.buildInputArea();
+	    that.inputArea.injectInside(that.editBox);
 	} else {
-	    that.log("RENDER SUMMARY DISPLAY MODE");
+	    log("RENDER SUMMARY DISPLAY MODE");
 	    var sBox = new ShiftSpace.Element ('div', {'class':'FisheyeSummary'});
 	    sBox.appendText(that.summaryText);
 	    sBox.injectInside (that.detailsBox);
@@ -223,35 +191,8 @@ var FisheyeCriticismRenderClass = new Class({
 var FisheyeDefaultRenderClass = new FisheyeCriticismRenderClass();
 
 
-var displayTextEnglish = {
-	languageKey : "en",
-	languageName : "English",
-	source : "source",
-	submitter : "submitter",
-	settings : "settings for",
-	settingsCat : "Which categories are shown",
-	settingsIgnoredSources : "Ignored sources",
-	settingsIgnoredAuthors : "Ignored authors",
-	settingsNoneIgnored : "none ignored",
-	clickToRestore : "(click to restore)",
-	ignore : "ignore this ",
-	read : "Read",
-	rangeWarning : "You need to select some page content first!",
-	save : "Save",
-	cancel : "Cancel",
-	done : "Done",
-	lockPos : "Embed after selected text",
-	defaultText : "This claim is false because...",
-	language : "Language",
-	editLink : 'Set link to source supporting your comment:',
-	editType : 'Make sure type is set correctly:',
-	editSummary : 'Summarize the criticism here:',
-	editEmbed : 'Embed into text: select some text and press the button below.  Shift will be set to embed after the selected text.',
-};
-
-var displayLanguages = {
-	'en' : displayTextEnglish,
-};
+// A global handle to the spaces libs - allows lib data to be accessed without referencing a shift
+var globalLibsHandle = null;
 
 
 var FisheyeShift = new Class({
@@ -282,10 +223,9 @@ var FisheyeShift = new Class({
     },
 
     criticismCategoryGetName: function(idx) {
-	if (displayLanguages[this.settings.language] &&
-	    displayLanguages[this.settings.language].criticismCategories &&
-	    displayLanguages[this.settings.language].criticismCategories[idx])
-	  return displayLanguages[this.settings.language].criticismCategories[idx];
+        var translatedName = FisheyeTranslation.getCriticismCategoryName(idx, this.settings.language);
+	if (translatedName != null)
+	  return translatedName;
     	else if (this.criticismCategories[idx] &&
     	         this.criticismCategories[idx].name)
 	  return this.criticismCategories[idx].name;
@@ -345,21 +285,25 @@ var FisheyeShift = new Class({
 	    'iconNote' 	: ' (edit)',
 	    onSave 	: function() {
 		this.haveSaved = 1;
+		this.updateAnchoredIconPosition(); // In case shift was dragged, update anchored icon position
+	        this.anchoredIcon.removeClass('FisheyeHidden');
 		this.save();
 		this.setMode (this.MODE_DISPLAY);
+		FisheyeConsole.updateConsole(this);
 	    },
 	    onCancel 	: function() {
+                log ("onCancel, EDIT mode");
 		if (this.haveSaved) {
+	            this.anchoredIcon.removeClass('FisheyeHidden');
 		    this.loadStoredData(this.json);
 		    this.setMode (this.MODE_DISPLAY);
-		} else
-		    if (this.anchoredIcon) {
-		      this.anchoredIcon.addClass('FisheyeHidden');
-		    }
+		} else {
+	            this.anchoredIcon.addClass('FisheyeHidden');
 		    this.hide(); // Cancel an unsaved new note
+		}
 	    },
 	    onRange 	: function() { 
-		this.log("onRange");
+		log("onRange");
 		if (window.getSelection) {
 		    var mySel = window.getSelection();
 		    if (mySel.rangeCount > 0) {
@@ -380,7 +324,6 @@ var FisheyeShift = new Class({
 		var di = makeDisplayItem(that.editBox);
 		makeButton(that.getText('save'), di, this.onSave.bind(that));
 		makeButton(that.getText('cancel'), di, this.onCancel.bind(that));
-		//makeButton(that.getText('lockPos'), di, this.onRange.bind(that));
 	    },
 	  },
 	2: {'name'	: 'Settings',
@@ -402,16 +345,7 @@ var FisheyeShift = new Class({
 		if (that.settingsLayout) {
 		    that.settingsBox = makeNoteBox(container);
 		    wrapSetHTML(that.settingsBox, that.settingsLayout);
-		    var listitems = that.settingsBox.getElementsByTagName("*");
-		    for (i=0; i<listitems.length; i++) {
-			el = listitems[i];
-			if (el.hasAttribute('fisheyeText'))
-			    el.firstChild.nodeValue = that.getText(el.getAttribute("fisheyeText"));
-			else if (el.hasAttribute('fisheyeFunc'))
-			    that[el.getAttribute("fisheyeFunc")](el);
-			else if (el.hasAttribute('fisheyeUserName'))
-			    el.firstChild.nodeValue = that.getUserName();
-		    }
+		    that.preProcessLayout (that.settingsBox);
 		} else {
 		    that.settingsBox = makeNoteBox(container);
 		    if (that.isProxy())
@@ -439,79 +373,58 @@ var FisheyeShift = new Class({
     },
 
 
-    // XXX: deprecated: remove
-    loadJavascripts	: function(path, dir, callback) {
-	this.log("loadJavascripts with path '" + path + "'");
-	if (this.xmlhttpRequest === undefined)
-	  return false;
-	url=feRoot + dir + "/" + path;
-	this.rebuildLock();
-
-	this.getWebPage(url,
-	  function(response) {
-	    objList = eval (response.responseText);
-	    for (key in objList) {
-	      url = feRoot + dir + "/" + objList[key] + ".js";
-	      this.rebuildLock();
-	      this.getWebPage(url,
-		function(response) {
-		  thisObj = eval (response.responseText);
-		  if (thisObj && (typeof callback == 'function'))
-		    callback(thisObj, key);
-		  if (!thisObj)
-		    this.log("failed to create object from '" + url + "'");
-		  this.rebuildUnlock();
-		}.bind(this),
-		function(response) { this.rebuildUnlock(); }.bind(this) );
-	    }
-	    this.rebuildUnlock();
-	  }.bind(this),
-	  function(response) { this.rebuildUnlock(); }.bind(this)
-	);
+      // Given a DOM object, parse through the elements and apply
+      //  * translations
+      //  * funcs to fill in dynamic content
+    preProcessLayout : function (domObject) {
+      var listitems = domObject.getElementsByTagName("*");
+      for (i=0; i<listitems.length; i++) {
+	  el = listitems[i];
+	  if (el.hasAttribute('fisheyeText'))
+	      el.firstChild.nodeValue = this.getText(el.getAttribute("fisheyeText"));
+	  else if (el.hasAttribute('fisheyeFunc'))
+	      this[el.getAttribute("fisheyeFunc")](el);
+	  else if (el.hasAttribute('fisheyeUserName'))
+	      el.firstChild.nodeValue = this.getUserName();
+      }
     },
 
     modeGetName : function(key) {
-	if (displayLanguages[this.settings.language] &&
-	    displayLanguages[this.settings.language].modes &&
-	    displayLanguages[this.settings.language].modes[key])
-	    return displayLanguages[this.settings.language].modes[key];
+        translatedName = FisheyeTranslation.getModeName(key, this.settings.language);
+	if (translatedName != null)
+	  return translatedName;
+
 	return this.modes[key].name;
     },
 
     // Get text for display, current language if possible or default to English
     getText: function(word) {
-	if (displayLanguages[this.settings.language] &&
-	    displayLanguages[this.settings.language][word])
-	  return displayLanguages[this.settings.language][word];
-	return displayTextEnglish[word];
-	
+        return FisheyeTranslation.getText(word, this.settings.language);
     },
 
     // Allow shift to serve as handle to a few local funcs
     wrapSetHTML: function(el, html) { wrapSetHTML(el, html); },
 
-    log: function(msg) {
-	if (typeof console == 'object' && console.log) {
-		console.log(msg);
-	} else if (typeof GM_log != 'undefined') {
-		GM_log(msg);
-	}
-    },
-
     dumpObj: function (someObj) {
 	for (var key in someObj) {
-	  this.log("" + key + " : " + someObj[key]);
+	  log("" + key + " : " + someObj[key]);
 	}
     },
-
 
     updatePosition: function() {
 	    var pos = this.anchoredIcon.getPosition();
-	    this.element.setStyles({
-	      'position': 'absolute',
-	      left : pos.x,
-	      top : pos.y,
-	    });
+	    log("updatePosition() toooo anchored icon position " + pos.x + "," + pos.y);
+	    setElementPosition(this.element, pos.x, pos.y);
+    },
+
+    // Update anchored icon position to match shift, e.g. if shift was dragged
+    // Only handles the case that shift is not locked to text
+    updateAnchoredIconPosition: function() {
+	if (!this.posRange) {
+	    var pos = this.getPosition();
+	    log("updateAnchoredIconPosition() to shift position " + pos.x + "," + pos.y);
+	    setElementPosition(this.anchoredIcon, pos.x, pos.y);
+	}
     },
 
     renderRange: function(reRange) {
@@ -521,25 +434,21 @@ var FisheyeShift = new Class({
 	this.renderClass.renderIcon(this, oSpan);
 	oSpan.addEvent('mouseover', this.onMouseIn.bind(this));
 	if (this.posRange) {
-	  this.log("renderRange: has posRange ");
+	  log("renderRange: has posRange ");
 	  if (this.posRange.insertNode) {
 	      oSpan.style.display = "inline";
 	      this.posRange.insertNode(oSpan);
 	      this.updatePosition();
 	  } else {
-	      this.log("tried to render invalid range");
+	      log("tried to render invalid range");
 	  }
 	} else {
-	  this.log("renderRange: did not have posRange ");
-	    // XXX: restore
-	    oSpan.setStyles({
-	      'position': 'absolute',
-	      left : 0, //this.json.position.x,
-	      top : 0, //this.json.position.y
-	    });
+	  log("renderRange: did not have posRange ");
+	  log("renderRange: setting anchoredIcon position to " + this.json.position.x + "," + this.json.position.y);
+	    setElementPosition(oSpan, this.json.position.x, this.json.position.y);
             oSpan.injectInside(document.body);
         }
-        this.log("renderRange: done ");
+        log("renderRange: done ");
     },
 
 
@@ -547,7 +456,7 @@ var FisheyeShift = new Class({
 
 	// Load shift data from JSON
 	this.haveSaved = json.haveSaved || 0;  // TODO: only on initial load?
-        this.log("loadStoredData: this.haveSaved '" + this.haveSaved + "' from json.haveSaved '" + json.haveSaved + "'");
+        log("loadStoredData: this.haveSaved '" + this.haveSaved + "' from json.haveSaved '" + json.haveSaved + "'");
 	this.criticismLink = json.criticismLink || "http://a.org/some.html";
 	this.summaryText = json.summaryText || this.getText('defaultText');
 	this.categoryType = json.categoryType || 0;
@@ -560,39 +469,6 @@ var FisheyeShift = new Class({
     },
 
 
-
-    /*
-	 Setup - when a particular annotation is created or loaded
-    */
-
-    setup: function(json) {
-        this.parent(json);
-        this.log("FISHEYE setup called with json: ");
-	this.dumpObj(json);
-
-	// Store initialize data in case we want to reload
-	this.json = json;
-
-	this.loadSettings();
-	// XXX: then get rid of this next line once above is reinstated
-        // this.gotSettings({});
-    },
-
-// XXX: use these standard hooks
-//  show: function()
- // {
-    //this.parent();
-    //this.update();
-    //this.hideEditInterface();
-    //// have to remember to unpin
-    //if(this.getPinRef() && !this.isPinned()) this.pin(this.element, this.getPinRef());
-  //},
-//
-  //edit: function()
-  //{
-    //this.parent();
-    //this.showEditInterface();
-  //},
 
     continueInitialize: function() {
 
@@ -611,96 +487,48 @@ var FisheyeShift = new Class({
 	this.mode = this.MODE_DISPLAY;
 
 	if (this.shouldIgnoreShift()) {
-	  this.log("continueInitialize: ignoring shift");
+	  log("continueInitialize: ignoring shift");
 	  // XXX: should register with the summary panel, panel should say 'N ignored'
 	  return;
 	} else {
-	  this.log("continueInitialize: NOT ignoring shift");
+	  log("continueInitialize: NOT ignoring shift");
 	}
 
         this.build(this.json);
 
 	this.rebuildLock();
 
-	languages = this.getParentSpace().attributes().lib.lang
-        //this.log("LANGUAGES:");
-        //this.dumpObj(languages);
-	for (var key in languages) {
-	  this.log("LANGUAGE " + key);
-	  //this.log("" + key + " : " + someObj[key]);
-	  if (key != "languages.js") { // XXX: file is deprecated, remove
-	    thisLang = eval(languages[key]);
-		// TODO: stronger validation of languages
-	    if (thisLang.languageKey === undefined) {
-	      this.log ("BAD LANGUAGE " + key);
-	      this.log ("BAD LANGUAGE " + key);
-	      this.log ("BAD LANGUAGE " + key);
-	    } else {
-	      displayLanguages[thisLang.languageKey] = thisLang;
-	      this.log ("added language " + thisLang.languageKey);
-	    }
-	  } else {
-	    this.log ("IGNORING LANGUAGES.JS");
-	  }
-	}
-
 	sources = this.getParentSpace().attributes().lib.sources
 	for (var key in sources) {
 	  if (key != "sources.js") { // XXX
-	    this.log("source key " + key);
-	    thisSource = eval(sources[key]);
+	    log("source key " + key);
+	    thisSource = eval(sources[key]); // XXX: this relies on implementation detail; eval pulls variables into local name space; we should assign a classname derived from the filename
 	    if (thisSource) {
 		this.criticismCategories[thisSource.key] = {
 			'name':thisSource.name, 
 			'color':thisSource.color, 
 			'renderClass':thisSource.renderClass, };
-		this.log("loaded source " + thisSource.key + ":" + thisSource.name);
+		log("loaded source " + thisSource.key + ":" + thisSource.name);
 		if (this.categoryType == thisSource.key)
 		    this.renderClass = this.refreshRenderClass();
 	    }
 	  } else {
-	    this.log("IGNORING SOURCES.JS");
+	    log("IGNORING SOURCES.JS");
 	  }
 	}
 
-        // XXX: restore
-	if (false) {
-		this.loadJavascripts("languages.js", "lang", function(thisLang){
-			if (thisLang)
-			    displayLanguages[thisLang.languageKey] = thisLang;
-		}.bind(this));
-
-		this.loadJavascripts("sources.js", "sources", function(thisSource){
-			if (thisSource) {
-			    this.criticismCategories[thisSource.key] = {
-				    'name':thisSource.name, 
-				    'color':thisSource.color, 
-				    'renderClass':thisSource.renderClass, };
-			    this.log("loaded source " + thisSource.key + ":" + thisSource.name);
-			    if (this.categoryType == thisSource.key)
-				this.renderClass = this.refreshRenderClass();
-			}
-		}.bind(this));
-        }
 	this.rebuildUnlock();
 
-        // XXX: restore
-        this.log("trying to get settingsLayout...");
+        log("trying to get settingsLayout...");
 	this.settingsLayout = this.getParentSpace().attributes().lib.layout["settings.html"]
-        //this.log("got SETTINGS LAYOUT '" + this.settingsLayout + "'");
-
-	if (false) { // XXX: remove
-		this.getWebPage(feRoot + "layout/settings.html", function(response) {
-			this.settingsLayout = response.responseText;
-		}.bind(this));
-	}
+        //log("got SETTINGS LAYOUT '" + this.settingsLayout + "'");
 
 	if (!this.haveSaved)
 	    this.setMode (this.MODE_EDIT);
 
 	this.manageElement(this.element);
 
-	// Hidden until mouseover XXX: take edit/havesaved into account?  seems to work as is....
+	// Hidden until mouseover XXX: take edit/haveSaved into account?  seems to work as is....
 	if (this.posRange)
           this.element.addClass('FisheyeHidden');
 
@@ -755,10 +583,10 @@ var FisheyeShift = new Class({
 
     shouldIgnoreShift: function() {
 	if (this.settings.hiddenAuthors[this.shiftAuthor()]) {
-	    this.log("HIDING because shiftAuthor is in hidden list");
+	    log("HIDING because shiftAuthor is in hidden list");
 	    return true;
 	} else {
-	    this.log("NOT HIDING because shiftAuthor is not in hidden list");
+	    log("NOT HIDING because shiftAuthor is not in hidden list");
 	    return false;
 	}
     },
@@ -855,21 +683,21 @@ var FisheyeShift = new Class({
 
 	// XXX: temp debug wrapper, remove
     myCanEdit: function() {
-	this.log( "myCanEdit: this.shiftAuthor() " + this.shiftAuthor() + " this.getUserId() " + this.getUserId() + " this.canEdit() " + this.canEdit());
+	log( "myCanEdit: this.shiftAuthor() " + this.shiftAuthor() + " this.getUserId() " + this.getUserId() + " this.canEdit() " + this.canEdit());
 	return this.canEdit();
     },
 
     //canEdit: function() {
 	//// XXX: restore
 	//return true;
-	//this.log("canEdit this.getUserName " + this.getUserName() + " shiftAuthor " + this.shiftAuthor());
-	//return this.loggedIn() && (this.getUserName() == this.shiftAuthor());
+	//log("canEdit this.getUserName " + this.getUserName() + " shiftAuthor " + this.shiftAuthor());
+	//return loggedIn() && (this.getUserName() == this.shiftAuthor());
     //},
 
     // Don't allow the user to ignore themself
     canIgnore: function() {
 	// TODO: doesn't work.  dump both.
-	this.log( "CAN_IGNORE shiftAuthor " + this.shiftAuthor() + " getUserId " + this.getUserId());
+	log( "CAN_IGNORE shiftAuthor " + this.shiftAuthor() + " getUserId " + this.getUserId());
 	return (this.shiftAuthor() != this.getUserId());
     },
 
@@ -950,8 +778,9 @@ var FisheyeShift = new Class({
     },
 
     fillLanguages: function(container) {
-	for (var key in displayLanguages) {
-		var someBox = makeTextBox (container, displayLanguages[key].languageName);
+        languages = FisheyeTranslation.getLanguageTable();
+	for (var key in languages) {
+		var someBox = makeTextBox (container, languages[key].languageName);
 		someBox.addEvent('click', function(key){
 		    this.settings.language = key;
 		    this.rebuild();
@@ -965,6 +794,13 @@ var FisheyeShift = new Class({
     */
     
     build: function(json) {
+        if (!this.haveSaved) {
+          var x = window.getScroll().x + (window.getWidth() - 300) / 2; // XXX: hardcoded width!
+          //var y = window.getScroll().y + (window.getHeight() - this.defaults.size.y) / 2
+          var y = 0;
+
+          json.position = { x : x, y : y} // TODO: center?  right edge? etc
+	}
 
 	// Our toplevel container
         this.element = new ShiftSpace.Element('div');
@@ -972,23 +808,19 @@ var FisheyeShift = new Class({
 	// initialize height
 	this.element.style.zIndex=1;
 
-	// XXX: restore
-	//this.element.setStyles({
-	  //'position': 'absolute',
-	  //left : json.position.x,
-	  //top : json.position.y
-	//});
-        // XXX: is this the correct new method?
-	this.setPosition(json);
+
 
 	if (json.posRef) {
 	    this.posRef = json.posRef;
-	    this.log("loaded posRef:");
+	    log("loaded posRef:");
 	    //this.dumpObj (this.posRef);
 	    this.posRange = ShiftSpace.RangeCoder.toRange (json.posRef);
+	} else {
+	    log("setting this.element position to " + json.position.x + "," + json.position.y);
+	    setElementPosition(this.element, this.json.position.x, this.json.position.y);
 	}
 
-	this.log("calling renderRange from line 808");
+	log("calling renderRange from line 808");
 	this.renderRange(this.posRange);
 
 	this.fillElement(this.element);
@@ -1066,7 +898,6 @@ var FisheyeShift = new Class({
     },
 
     loadSettings: function() {
-          // XXX: use new standard this.getParentSpace().getPref('settings', {}, this.gotSettings.bind(this)); 
           this.getParentSpace().getPreference('settings', {}, this.gotSettings.bind(this)); 
     },
 
@@ -1075,29 +906,19 @@ var FisheyeShift = new Class({
 	this.renderClass = this.refreshRenderClass();
 	this.summaryText = this.inputArea.value; // XXX: edit merge: was this removed?
 	this.rebuild();
-	FisheyeConsole.updateConsole();
-    },
-
-    changeCategory: function() {
-    	var txt = "Enter category code:\n";
-	for (var i in this.criticismCategories)
-	    txt += "  " + i + "=" + this.criticismCategoryGetName(i) + ",\n";
-
-	var msg = prompt(txt, this.categoryType);
-	if (msg)
-	    this.setCategory(msg);
+	FisheyeConsole.updateConsole(this);
     },
 
     maybeTypeFromLink: function(link) {
 	// Clean up link  TODO: strip leading whitespace
 	if (link.indexOf("http://") == 0) {
-	  this.log("string starts with http://");
+	  log("string starts with http://");
 	  link = link.substring(7);
 	}
 	for (var key in this.criticismCategories) {
 	  var cat = this.criticismCategories[key];
 	  var host = cat.host;
-	  this.log("checking link " + link + " against key " + key + " host " + host);
+	  log("checking link " + link + " against key " + key + " host " + host);
 	  //this.dumpObj(this.criticismCategories[key]);
 	  if (link.indexOf(host) == 0) {
 	    this.setCategory(key);
@@ -1134,8 +955,10 @@ var FisheyeShift = new Class({
 
 	this.mode = newMode;
 	this.rebuild();
-	if (this.mode == this.MODE_EDIT)
+	if (this.mode == this.MODE_EDIT) {
+	    this.anchoredIcon.addClass('FisheyeHidden');
 	    this.element.makeDraggable({handle: this.handleBar});
+	}
     },
 
 
@@ -1143,6 +966,7 @@ var FisheyeShift = new Class({
 	// we could use that, although we'd likely keep the timer logic
     onMouseIn : function( e )
     {
+        //log("onMouseIn");
 	// we don't want the event to continue
 	var evt = new Event(e);
 	evt.stopPropagation();
@@ -1150,8 +974,10 @@ var FisheyeShift = new Class({
 	// Cancel any pending hide, then show
 	this.hidePending = 0;
 
-	if (this.shown)
+	if (this.shown) {
+	  //log("onMouseIn returning because this.shown");
 	  return;
+        }
 
 	// If user is mousing over placeholder (which might have changed
 	// since shift creation, eg if user changes font size) then
@@ -1166,7 +992,7 @@ var FisheyeShift = new Class({
 	if (this.mode == this.MODE_DISPLAY) {
 	    this.detailsBox.removeClass('FisheyeHidden');
 	    this.buttonBox.removeClass ('FisheyeHidden');
-		// XXX: havesaved etc?
+		// XXX: haveSaved etc?
 	    if (this.posRange)
 	        this.element.removeClass ('FisheyeHidden');
 	}
@@ -1174,6 +1000,7 @@ var FisheyeShift = new Class({
     
     onMouseOut : function( e )
     {
+      //log("onMouseOut");
       // we don't want the even to continue
       var evt = new Event(e);
       evt.stopPropagation();
@@ -1225,7 +1052,6 @@ var FisheyeShift = new Class({
 
     buildInputArea : function()
     {
-	//this.inputArea = new ShiftSpace.Element('textarea', {
 	this.inputArea = new ShiftSpace.Element('textarea', {
 	    'class' : 'FisheyeNoteShiftTextAreaSimple',
 	    'rows' : 8,
@@ -1238,7 +1064,7 @@ var FisheyeShift = new Class({
     },
 
     getWebPage: function(url, callback, onerror) {
-	this.log("getWebPage with url '" + url + "'");
+	log("getWebPage with url '" + url + "'");
 	if (!onerror)
 	  onerror = function() {};
         this.xmlhttpRequest({
@@ -1248,11 +1074,116 @@ var FisheyeShift = new Class({
 	    'onerror': onerror
         });
     },
+
+
+
+/*
+
+PLATFORM HOOKS
+
+*/
+
+      // Called by platform when a particular annotation is created or loaded
+    setup: function(json) {
+        log("FISHEYE setup called with json: ");
+	this.dumpObj(json);
+
+	// Initalize global stuff and load miscellaneous code
+        globalLibsHandle = this.getParentSpace().attributes().lib;
+        globalInit();
+
+	// Store initialize data in case we want to reload
+	this.json = json;
+
+	// We have to load user preferences before we can load shift
+	this.loadSettings();
+    },
+
+      // Called by platform when a shift is deleted
+    destroy: function() {
+      this.parent();
+      this.anchoredIcon.dispose();
+    },
+
+
+      // Called by platform when a shift is shown
+    show: function() {
+      log("SHIFT CLASS SHOW CALLED");
+      this.element.removeClass('FisheyeHidden');
+      this.anchoredIcon.removeClass('FisheyeHidden');
+      if (this.posRange) {
+	      this.anchoredIcon.style.display = "inline";
+      }
+      this.parent();
+    },
+
+      // Called by platform to hide a shift
+    hide: function() {
+      log("SHIFT CLASS HIDE CALLED");
+      this.element.addClass('FisheyeHidden');
+      this.anchoredIcon.addClass('FisheyeHidden');
+      if (this.posRange) {
+	      this.anchoredIcon.style.display = "none";
+      }
+      // TODO: get current dimensions; save; set dimensions to 0,0
+      this.parent();
+    },
+
+       // Called by platform when the number of Fisheye shifts shown goes from 0 to 1
+    showInterface: function() {
+      log("SHOW INTERFACE");
+    },
+
+      // Called by platform when the number of Fisheye shifts shown goes from 1 to 0
+    hideInterface: function() {
+      log("HIDE INTERFACE");
+    },
+
+      // Called by platform when user initiates edit via console
+    edit: function()
+    {
+      this.parent();
+      this.showEditInterface();
+    },
+
+      // Called by platform when user initiates save via console
+    leaveEdit: function()
+    {
+      this.parent();
+      this.modes[this.mode].onSave().bind(this);
+    },
+
 });
 
-// ?? Register our Space class, passing the Shift class definition
-// platform will need to instantiatiate and hook into us
-//var Fisheye = new FisheyeSpace(FisheyeShift);
+
+// Global function for debug logging
+var log = function(msg) {
+	if (typeof console == 'object' && console.log) {
+		console.log(msg);
+	} else if (typeof GM_log != 'undefined') {
+		GM_log(msg);
+	}
+    };
+
+var setElementPosition = function(element, x, y) {
+    element.setStyles({
+      'position': 'absolute',
+      left : x,
+      top : y,
+    });
+};
+
+
+
+
+var FisheyeTranslation = null;
+
+var globalInit = function() {
+  translationCode = globalLibsHandle.code["translation.js"];
+  eval(translationCode);
+  FisheyeTranslation = myFisheyeTranslation;
+};
+
 
 
 
@@ -1265,35 +1196,50 @@ var FisheyeConsoleClass = new Class({
 	this.registeredShifts[this.registeredShifts.length] = shift;
 
 	if (this.registeredShifts.length == 1)
-	    this.makeConsole();
+	    this.makeConsole(shift);
 	else
-	    this.updateConsole();
+	    this.updateConsole(shift);
     },
 
-    updateConsole: function() {
+    updateConsole: function(shift) {
 	var byType = {};
 	var byTypeCount = {};
 
-	var container = this.consoleElement;
-        container.setStyles({
-            'font': '16px verdana, sans-serif',
-	    border : 'medium double #C4C87C' ,
-        });
-	wrapSetHTML(container, "");
-
-	var summaryBox = makeNoteBox(container);
-	var content = "Fisheye summary:";
-        summaryBox.setStyles({ 'font': '16px verdana, sans-serif', });
-	wrapSetHTML(summaryBox, content);
-	summaryBox.injectInside(container);
+       var totalVisibleCount = 0;
 
 	for (var i=0; i < this.registeredShifts.length; i++) {
 		var ashift = this.registeredShifts[i];
-		byType[ashift.categoryType] = ashift;
-		if (byTypeCount[ashift.categoryType])
-			byTypeCount[ashift.categoryType]++;
-		else
-			byTypeCount[ashift.categoryType] = 1;
+		if (ashift.haveSaved) {
+		        totalVisibleCount++;
+			byType[ashift.categoryType] = ashift;
+			if (byTypeCount[ashift.categoryType])
+				byTypeCount[ashift.categoryType]++;
+			else
+				byTypeCount[ashift.categoryType] = 1;
+		}
+	}
+
+	if (totalVisibleCount < 1)
+	  return;
+
+	var container = this.consoleElement;
+	var dynamicLayout = false;
+	if (dynamicLayout) {
+	  wrapSetHTML(container, this.consoleLayout);
+	  shift.preProcessLayout(container);
+	}
+	else {
+	  container.setStyles({
+	      'font': '16px verdana, sans-serif',
+	      border : 'medium double #C4C87C' ,
+	  });
+	  wrapSetHTML(container, "");
+
+	  var summaryBox = makeNoteBox(container);
+	  var content = "Fisheye summary:";
+	  summaryBox.setStyles({ 'font': '16px verdana, sans-serif', });
+	  wrapSetHTML(summaryBox, content);
+	  summaryBox.injectInside(container);
 	}
 
 	var sortedTypes = new Array();
@@ -1313,7 +1259,9 @@ var FisheyeConsoleClass = new Class({
 	}
     },
 
-    makeConsole: function() {
+    makeConsole: function(shift) {
+	this.consoleLayout = shift.getParentSpace().attributes().lib.layout["console.html"]
+
         this.consoleElement = new ShiftSpace.Element('div');
 
 	this.consoleElement.addEvent('click', function(){
@@ -1326,7 +1274,7 @@ var FisheyeConsoleClass = new Class({
 	  top : 0,
 	  zIndex : 2
 	});
-	this.updateConsole();
+	this.updateConsole(shift);
         this.consoleElement.injectInside(document.body);
     },
 
@@ -1360,7 +1308,7 @@ var FisheyeConsole = new FisheyeConsoleClass();
 	if (!e) var e = window.event;
 	if (e.which) rightclick = (e.which == 3);
 	else if (e.button) rightclick = (e.button == 2);
-	this.log('Rightclick: ' + rightclick); // true or false
+	log('Rightclick: ' + rightclick); // true or false
 */
 
 
@@ -1371,39 +1319,50 @@ rename variables
 replace members variables with local vars in fill/build funcs
 disable save button until fields have been set
 decorate URI field red until it has been set (others?)
-httprequest is in thread?  loads seems slow with it
-firefox keeps showing load indicator even after we'ver parsed data
 initialize zIndex (done but doesn't seem to work)
 don't overload criticismLink for newsTrust?
 make undraggable when exiting edit mode
 cancel should undo any unsaved position change
 ref by range as well as position, plus text.  allow for smart decision later
 finish cleanup of render funcs: isEdit, target
-make [ignore] user work (once user logic is functional in 0.11)
 signup/login placeholder logic?
 plugin settings gui hooks?
 generic per-shift and per-user data storage hooks for plugins?
 edit/setup icons in header? buttonbar?
 gui layout in separate HTML file
 
-summary box resets when entering type and link on new shift - atleast put it last
-
 in general, having both embedded icon and full flying interface is wierd
   - after relocting a shift not tied to text, placeholder still at old pos
   - embedded icon doesn't change color or style after changing type
-
-manageElement on two elements?
 
 
 how to show space settings without having a shift?
   example: there is one shift on page, author is in ignore list, impossible to edit ignore list
 
-F is bold/not bold or different font between placeholder / opened
+F is bold/not bold or different font between placeholder / opened (at least when in edit mode).  is this only possible when anchor and shift are at different places?
 
-edit -> cancel -> mouseover no longer works?
+mouse out events from link rollover cause shift hide (hard to hit edit button) -> this seems to actually be a bug with the SS console, not with fisheye (even when console is closed, resize handle at top edge still grabs focus on mouseover)
 
-layout of edit screen: summary box size & scrolling behaviour
- mouse out events from link rollover cause shift hide (hard to hit edit button)
+put new shift z position to be console +1 ???  every new shift ends up underneath the console
+
+change position of shift by dragging or locking to new text: anchored icon stays at old position until page is reloaded.
+on shift save, (maybe) update x,y position of anchored icon - need to handle the case that posRange has been updated!
+
+edit -> drag -> cancel -> anchoredIcon visible at dragged location until mouse in/out
+
+why are we always checking if(anchoredIcon) ?? doesn't it always exist?
+
+why is updatePosition called every time shift is hidden (to placeholder... mouse in/out to observe)
+
+test: anchor locked to text, change font size: does it follow anchored icon?  might make more sense to actually hide element rather than hiding everything-except-icon on mouseout: then every time it was shown, could be shown at anchor position
+
+settings -> change language -> cancel -> doesn't restore previous settings
+
+language list should be a drop-down list
+
+space -> settings -> cancel -> console space count increases to 2
+
+sources plugin loading is an unrecommended use of eval; remove the assignment from the end of each plugin, and end with a hash table (not assigned to variable)
 
 */
 
